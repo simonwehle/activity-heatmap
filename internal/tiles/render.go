@@ -1,22 +1,36 @@
 package tiles
 
 import (
+	"bytes"
+	"fmt"
 	"image/png"
 	"math"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/fogleman/gg"
 )
 
+var (
+	tileCache      = map[string][]byte{}
+	tileCacheMutex sync.Mutex
+)
+
+func ClearTileCache() {
+	tileCacheMutex.Lock()
+	tileCache = map[string][]byte{}
+	tileCacheMutex.Unlock()
+}
+
 func tileBounds(z, x, y int) (minLon, minLat, maxLon, maxLat float64) {
-    n := math.Pow(2, float64(z))
-    minLon = float64(x)/n*360 - 180
-    maxLon = float64(x+1)/n*360 - 180
-    maxLat = math.Atan(math.Sinh(math.Pi*(1-2*float64(y)/n))) * 180 / math.Pi
-    minLat = math.Atan(math.Sinh(math.Pi*(1-2*float64(y+1)/n))) * 180 / math.Pi
-    return
+	n := math.Pow(2, float64(z))
+	minLon = float64(x)/n*360 - 180
+	maxLon = float64(x+1)/n*360 - 180
+	maxLat = math.Atan(math.Sinh(math.Pi*(1-2*float64(y)/n))) * 180 / math.Pi
+	minLat = math.Atan(math.Sinh(math.Pi*(1-2*float64(y+1)/n))) * 180 / math.Pi
+	return
 }
 
 func lonLatToPixel(lon, lat, minLon, minLat, maxLon, maxLat float64, tileSize int) (px, py float64) {
@@ -41,6 +55,18 @@ func ServePNGTile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	key := fmt.Sprintf("%d/%d/%d", z, x, y)
+
+	tileCacheMutex.Lock()
+	if cached, ok := tileCache[key]; ok {
+		tileCacheMutex.Unlock()
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Write(cached)
+		return
+	}
+	tileCacheMutex.Unlock()
+
 	const tileSize = 256
 
 	minLon, minLat, maxLon, maxLat := tileBounds(z, x, y)
@@ -63,10 +89,10 @@ func ServePNGTile(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// glow layer
-		alpha := math.Min(0.06+float64(seg.Count)*0.015, 0.35)
 		width := math.Min(1.5+float64(seg.Count)*0.3, 6.0)
-		dc.SetRGBA(0.11, 0.56, 1.0, alpha)
+
+		// glow layer
+		dc.SetRGBA(0.11, 0.56, 1.0, math.Min(0.06+float64(seg.Count)*0.015, 0.35))
 		dc.SetLineWidth(width * 2.5)
 		dc.SetLineCapRound()
 		drawSegment(dc, seg, minLon, minLat, maxLon, maxLat, tileSize)
@@ -80,9 +106,17 @@ func ServePNGTile(w http.ResponseWriter, r *http.Request) {
 		dc.Stroke()
 	}
 
+	var buf bytes.Buffer
+	png.Encode(&buf, dc.Image())
+	pngBytes := buf.Bytes()
+
+	tileCacheMutex.Lock()
+	tileCache[key] = pngBytes
+	tileCacheMutex.Unlock()
+
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	png.Encode(w, dc.Image())
+	w.Write(pngBytes)
 }
 
 func drawSegment(dc *gg.Context, seg LineSegment, minLon, minLat, maxLon, maxLat float64, tileSize int) {
@@ -126,6 +160,5 @@ func segmentBounds(seg LineSegment) (minLon, minLat, maxLon, maxLat float64) {
 			maxLat = c[1]
 		}
 	}
-
 	return
 }

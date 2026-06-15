@@ -54,6 +54,8 @@ func Generate() error {
 	cachedGeoJSON = &geojson
 	cacheMutex.Unlock()
 
+	ClearTileCache()
+
 	log.Println("✓ Heatmap generation complete")
 	return nil
 }
