@@ -73,7 +73,7 @@ func ServePNGTile(w http.ResponseWriter, r *http.Request) {
 		dc.Stroke()
 
 		// core layer
-		dc.SetRGBA(0.3, 0.71, 1.0, math.Min(0.65+float64(seg.Count)*0.02, 0.95))
+		dc.SetRGBA(0.118, 0.565, 1.0, 1.0)
 		dc.SetLineWidth(width * 0.6)
 		dc.SetLineCapRound()
 		drawSegment(dc, seg, minLon, minLat, maxLon, maxLat, tileSize)
@@ -87,14 +87,22 @@ func ServePNGTile(w http.ResponseWriter, r *http.Request) {
 
 func drawSegment(dc *gg.Context, seg LineSegment, minLon, minLat, maxLon, maxLat float64, tileSize int) {
 	started := false
+	var lastPx, lastPy float64
 	for _, c := range seg.Coordinates {
 		px, py := lonLatToPixel(c[0], c[1], minLon, minLat, maxLon, maxLat, tileSize)
 		if !started {
 			dc.MoveTo(px, py)
 			started = true
-		} else {
-			dc.LineTo(px, py)
+			lastPx, lastPy = px, py
+			continue
 		}
+
+		dx, dy := px-lastPx, py-lastPy
+		if math.Sqrt(dx*dx+dy*dy) < 1.0 {
+			continue
+		}
+		dc.LineTo(px, py)
+		lastPx, lastPy = px, py
 	}
 }
 
