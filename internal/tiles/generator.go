@@ -1,9 +1,7 @@
 package tiles
 
 import (
-	"encoding/json"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,17 +148,4 @@ func segmentsToGeoJSON(segments []LineSegment) FeatureCollection {
 	}
 
 	return fc
-}
-
-func GetHeatmapGeoJSON(w http.ResponseWriter, r *http.Request) {
-	cacheMutex.Lock()
-	defer cacheMutex.Unlock()
-
-	if cachedGeoJSON == nil {
-		http.Error(w, "Heatmap not ready", http.StatusServiceUnavailable)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(cachedGeoJSON)
 }
