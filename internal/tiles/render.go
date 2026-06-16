@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/fogleman/gg"
+	"github.com/nfnt/resize"
 )
 
 var (
@@ -22,6 +23,11 @@ func ClearTileCache() {
 	tileCacheMutex.Lock()
 	tileCache = map[string][]byte{}
 	tileCacheMutex.Unlock()
+}
+
+func lineWidthForZoom(z, count int) float64 {
+	base := math.Max(0.8, 2.5-float64(18-z)*0.15)
+	return math.Min(base+float64(count)*0.25, 5.0)
 }
 
 func tileBounds(z, x, y int) (minLon, minLat, maxLon, maxLat float64) {
@@ -68,9 +74,12 @@ func ServePNGTile(w http.ResponseWriter, r *http.Request) {
 	tileCacheMutex.Unlock()
 
 	const tileSize = 256
+	const supersample = 2
+	const renderSize = tileSize * supersample
 
 	minLon, minLat, maxLon, maxLat := tileBounds(z, x, y)
-	dc := gg.NewContext(tileSize, tileSize)
+
+	dc := gg.NewContext(renderSize, renderSize)
 	dc.SetRGBA(0, 0, 0, 0)
 	dc.Clear()
 
@@ -83,31 +92,34 @@ func ServePNGTile(w http.ResponseWriter, r *http.Request) {
 		if len(seg.Coordinates) < 2 {
 			continue
 		}
-
 		segMinLon, segMinLat, segMaxLon, segMaxLat := segmentBounds(seg)
 		if segMaxLon < minLon || segMinLon > maxLon || segMaxLat < minLat || segMinLat > maxLat {
 			continue
 		}
 
-		width := math.Min(1.5+float64(seg.Count)*0.3, 6.0)
+		width := lineWidthForZoom(z, seg.Count) * float64(supersample)
 
 		// glow layer
-		dc.SetRGBA(0.11, 0.56, 1.0, math.Min(0.06+float64(seg.Count)*0.015, 0.35))
-		dc.SetLineWidth(width * 2.5)
-		dc.SetLineCapRound()
-		drawSegment(dc, seg, minLon, minLat, maxLon, maxLat, tileSize)
-		dc.Stroke()
+		// dc.SetRGBA(0.11, 0.56, 1.0, math.Min(0.06+float64(seg.Count)*0.015, 0.35))
+		// dc.SetLineWidth(width * 2.5)
+		// dc.SetLineCapRound()
+		// dc.SetLineJoinRound()
+		// drawSegment(dc, seg, minLon, minLat, maxLon, maxLat, renderSize)
+		// dc.Stroke()
 
 		// core layer
 		dc.SetRGBA(0.118, 0.565, 1.0, 1.0)
 		dc.SetLineWidth(width * 0.6)
 		dc.SetLineCapRound()
-		drawSegment(dc, seg, minLon, minLat, maxLon, maxLat, tileSize)
+		dc.SetLineJoinRound()
+		drawSegment(dc, seg, minLon, minLat, maxLon, maxLat, renderSize)
 		dc.Stroke()
 	}
 
+	downscaled := resize.Resize(tileSize, tileSize, dc.Image(), resize.Lanczos3)
+
 	var buf bytes.Buffer
-	png.Encode(&buf, dc.Image())
+	png.Encode(&buf, downscaled)
 	pngBytes := buf.Bytes()
 
 	tileCacheMutex.Lock()
@@ -130,9 +142,8 @@ func drawSegment(dc *gg.Context, seg LineSegment, minLon, minLat, maxLon, maxLat
 			lastPx, lastPy = px, py
 			continue
 		}
-
 		dx, dy := px-lastPx, py-lastPy
-		if math.Sqrt(dx*dx+dy*dy) < 1.0 {
+		if dx*dx+dy*dy < 0.25 {
 			continue
 		}
 		dc.LineTo(px, py)
@@ -145,20 +156,11 @@ func segmentBounds(seg LineSegment) (minLon, minLat, maxLon, maxLat float64) {
 	maxLon = seg.Coordinates[0][0]
 	minLat = seg.Coordinates[0][1]
 	maxLat = seg.Coordinates[0][1]
-
 	for _, c := range seg.Coordinates[1:] {
-		if c[0] < minLon {
-			minLon = c[0]
-		}
-		if c[0] > maxLon {
-			maxLon = c[0]
-		}
-		if c[1] < minLat {
-			minLat = c[1]
-		}
-		if c[1] > maxLat {
-			maxLat = c[1]
-		}
+		if c[0] < minLon { minLon = c[0] }
+		if c[0] > maxLon { maxLon = c[0] }
+		if c[1] < minLat { minLat = c[1] }
+		if c[1] > maxLat { maxLat = c[1] }
 	}
 	return
 }
