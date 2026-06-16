@@ -1,9 +1,7 @@
 package tiles
 
 import (
-	"encoding/json"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,6 +33,7 @@ type LineSegment struct {
 
 var (
 	cachedGeoJSON *FeatureCollection
+	cachedSegments []LineSegment
 	cacheMutex    sync.Mutex
 )
 
@@ -51,8 +50,11 @@ func Generate() error {
 	log.Printf("Created GeoJSON with %d line features", len(geojson.Features))
 
 	cacheMutex.Lock()
+	cachedSegments = lineSegments
 	cachedGeoJSON = &geojson
 	cacheMutex.Unlock()
+
+	ClearTileCache()
 
 	log.Println("✓ Heatmap generation complete")
 	return nil
@@ -68,33 +70,56 @@ func extractLineSegments() ([]LineSegment, error) {
 
 	processedFiles := 0
 	for _, file := range files {
-		if file.IsDir() || !strings.HasSuffix(strings.ToLower(file.Name()), ".gpx") {
+		if file.IsDir() {
 			continue
 		}
-
+		name := strings.ToLower(file.Name())
 		filePath := filepath.Join("./activities", file.Name())
-		gpx, err := parser.ParseGPXFile(filePath)
-		if err != nil {
-			log.Printf("Warning: skipping %s: %v", file.Name(), err)
+
+		var segments []parser.Segment
+		var err error
+
+		switch {
+		case strings.HasSuffix(name, ".gpx"):
+			gpx, e := parser.ParseGPXFile(filePath)
+			if e != nil {
+				log.Printf("Warning: skipping %s: %v", file.Name(), e)
+				continue
+			}
+			for _, track := range gpx.Tracks {
+				for _, seg := range track.Segments {
+					if len(seg.Points) < 2 {
+						continue
+					}
+					var pts []parser.Point
+					for _, p := range seg.Points {
+						pts = append(pts, parser.Point{Lat: p.Lat, Lon: p.Lon})
+					}
+					segments = append(segments, parser.Segment{Points: pts})
+				}
+			}
+		case strings.HasSuffix(name, ".fit"):
+			segments, err = parser.ParseFITFile(filePath)
+			if err != nil {
+				log.Printf("Warning: skipping %s: %v", file.Name(), err)
+				continue
+			}
+		default:
 			continue
 		}
 
-		for _, track := range gpx.Tracks {
-			for _, segment := range track.Segments {
-				if len(segment.Points) < 2 {
-					continue
-				}
-
-				coords := make([][]float64, len(segment.Points))
-				for i, point := range segment.Points {
-					coords[i] = []float64{point.Lon, point.Lat}
-				}
-
-				allSegments = append(allSegments, LineSegment{
-					Coordinates: coords,
-					Count:       1,
-				})
+		for _, seg := range segments {
+			if len(seg.Points) < 2 {
+				continue
 			}
+			coords := make([][]float64, len(seg.Points))
+			for i, p := range seg.Points {
+				coords[i] = []float64{p.Lon, p.Lat}
+			}
+			allSegments = append(allSegments, LineSegment{
+				Coordinates: coords,
+				Count:       1,
+			})
 		}
 		processedFiles++
 	}
@@ -125,17 +150,4 @@ func segmentsToGeoJSON(segments []LineSegment) FeatureCollection {
 	}
 
 	return fc
-}
-
-func GetHeatmapGeoJSON(w http.ResponseWriter, r *http.Request) {
-	cacheMutex.Lock()
-	defer cacheMutex.Unlock()
-
-	if cachedGeoJSON == nil {
-		http.Error(w, "Heatmap not ready", http.StatusServiceUnavailable)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(cachedGeoJSON)
 }

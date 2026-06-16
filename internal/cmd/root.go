@@ -25,8 +25,10 @@ func Execute() {
 		tmpl.Execute(w, map[string]string{"MapStyle": mapStyle})
 	})
 
-	http.Handle("/tiles/", http.StripPrefix("/tiles/", http.FileServer(http.Dir("./tiles"))))
-	http.HandleFunc("/api/heatmap", tiles.GetHeatmapGeoJSON)
+	go tiles.Watch()
+
+	http.Handle("/favicon.svg", http.FileServer(http.Dir("./web")))
+	http.HandleFunc("/tiles/", tiles.ServePNGTile)
 	addr := ":3465"
 	log.Println("Server started at port" + addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
