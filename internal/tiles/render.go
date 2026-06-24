@@ -26,7 +26,7 @@ func ClearTileCache() {
 }
 
 func lineWidthForZoom(z, count int) float64 {
-	base := math.Max(0.8, 2.5-float64(18-z)*0.15)
+	base := math.Max(1.2, 2.5-float64(18-z)*0.15)
 	return math.Min(base+float64(count)*0.25, 5.0)
 }
 
@@ -73,8 +73,8 @@ func ServePNGTile(w http.ResponseWriter, r *http.Request) {
 	}
 	tileCacheMutex.Unlock()
 
-	const tileSize = 256
-	const supersample = 2
+	const tileSize = 512
+	const supersample = 3
 	const renderSize = tileSize * supersample
 
 	minLon, minLat, maxLon, maxLat := tileBounds(z, x, y)
@@ -108,8 +108,8 @@ func ServePNGTile(w http.ResponseWriter, r *http.Request) {
 		// dc.Stroke()
 
 		// core layer
-		dc.SetRGBA(0.118, 0.565, 1.0, 1.0)
-		dc.SetLineWidth(width * 0.6)
+		dc.SetRGBA(0.9141, 0.3717, 0.16415, 1.0)
+		dc.SetLineWidth(width * 1)
 		dc.SetLineCapRound()
 		dc.SetLineJoinRound()
 		drawSegment(dc, seg, minLon, minLat, maxLon, maxLat, renderSize)
