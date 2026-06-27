@@ -114,7 +114,7 @@ func extractLineSegments() ([]LineSegment, error) {
 			}
 			coords := make([][]float64, len(seg.Points))
 			for i, p := range seg.Points {
-				coords[i] = []float64{p.Lon, p.Lat}
+				coords[i] = roundCoordPair([]float64{p.Lon, p.Lat})
 			}
 			allSegments = append(allSegments, LineSegment{
 				Coordinates: coords,
