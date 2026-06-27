@@ -28,21 +28,26 @@
         center: [10, 50],
         zoom: 6,
       });
+      map.on("load", async () => {
+        try {
+          const response = await fetch("/heatmap.json");
+          const heatmapStyle = await response.json();
 
-      map.on("load", () => {
-        map.addSource("tracks-source", {
-          type: "raster",
-          tiles: ["http://localhost:3465/tiles/{z}/{x}/{y}.png"],
-          tileSize: 256,
-        });
-        map.addLayer({
-          id: "tracks-layer",
-          type: "raster",
-          source: "tracks-source",
-          paint: {
-            "raster-opacity": 1.0,
-          },
-        });
+          for (const [sourceId, sourceDef] of Object.entries(
+            heatmapStyle.sources || {},
+          )) {
+            if (!map.getSource(sourceId)) {
+              map.addSource(sourceId, sourceDef);
+            }
+          }
+          for (const layer of heatmapStyle.layers || []) {
+            if (!map.getLayer(layer.id)) {
+              map.addLayer(layer);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading heatmap style:", error);
+        }
       });
     </script>
   </body>
