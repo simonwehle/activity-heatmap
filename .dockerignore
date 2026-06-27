@@ -8,3 +8,4 @@
 !internal/**
 !web/
 !web/**
+!style/heatmap.json
