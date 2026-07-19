@@ -29,12 +29,9 @@
         zoom: 0,
       });
       map.on("load", async () => {
-        // Loads a style-shaped response ({ sources: {...}, layers: [...] }),
-        // like /heatmap.json.
         async function loadStyleShaped(url) {
           const response = await fetch(url);
           const style = await response.json();
-
           for (const [sourceId, sourceDef] of Object.entries(
             style.sources || {},
           )) {
@@ -48,34 +45,10 @@
             }
           }
         }
-
-        // Loads an overlay-shaped response ({ source: {...}, layers: [...] }),
-        // like /api/heatmap-overlay or /api/squadrats-overlay. All layers
-        // share the single "source", referenced by sourceId.
-        async function loadOverlayShaped(url, sourceId) {
-          const response = await fetch(url);
-          const body = await response.json();
-
-          if (!map.getSource(sourceId)) {
-            map.addSource(sourceId, { type: "geojson", data: body.source });
-          }
-          for (const layer of body.layers || []) {
-            if (!map.getLayer(layer.id)) {
-              map.addLayer({ ...layer, source: sourceId });
-            }
-          }
-        }
-
         try {
-          await loadStyleShaped("/heatmap.json");
+          await loadStyleShaped("/api/heathunt");
         } catch (error) {
-          console.error("Error loading heatmap style:", error);
-        }
-
-        try {
-          await loadOverlayShaped("/api/squadrats-overlay", "squadrats-source");
-        } catch (error) {
-          console.error("Error loading squadrats overlay:", error);
+          console.error("Error loading overlay:", error);
         }
       });
     </script>
