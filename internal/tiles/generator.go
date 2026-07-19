@@ -54,6 +54,7 @@ func Generate() error {
 	cacheMutex.Lock()
 	cachedSegments = lineSegments
 	cachedGeoJSON = &geojson
+	buildSquadratsCache(cachedSegments)
 	cacheMutex.Unlock()
 
 	log.Println("✓ Heatmap generation complete")

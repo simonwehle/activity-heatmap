@@ -29,6 +29,7 @@ func Execute() {
 
 	http.Handle("/favicon.svg", http.FileServer(http.Dir("./web")))
 	http.Handle("/heatmap.json", http.FileServer(http.Dir("./style")))
+	http.HandleFunc("/api/squadrats-overlay", tiles.GetSquadratsOverlay)
 	http.HandleFunc("/api/heatmap", tiles.GetHeatmapGeoJSON)
 	http.HandleFunc("/api/overlay", tiles.GetHeatmapOverlay)
 	addr := ":3465"
