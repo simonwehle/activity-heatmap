@@ -1,4 +1,35 @@
 services:
+  # The container endurain and its db is optional but recommended for easy garmin sync
+
+  # endurain:
+  #   container_name: endurain-app
+  #   image: ghcr.io/endurain-project/endurain:latest
+  #   env_file:
+  #     - .env
+  #   volumes:
+  #     - ./data:/app/backend/data # necessary for activity files, user images and server images persistence on container image updates
+  #     - ./logs:/app/backend/logs # log files for the backend
+  #   ports:
+  #     - "987:8080"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   restart: unless-stopped
+
+  # postgres:
+  #   image: docker.io/postgres:17.5
+  #   container_name: endurain-postgres
+  #   env_file:
+  #     - .env
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U endurain"]
+  #     interval: 5s
+  #     timeout: 5s
+  #     retries: 5
+  #   volumes:
+  #     - ./postgres:/var/lib/postgresql/data
+  #   restart: unless-stopped
+
   heatmap:
     image: ghcr.io/simonwehle/activity-heatmap:latest
     container_name: activity-heatmap
@@ -8,4 +39,5 @@ services:
     ports:
       - "3465:3465"
     volumes:
-      - ./activities:/app/activities:ro
+      # mount endurain's synced activities directly into activity heatmap
+      - ./data/activity_files/processed:/app/activities:ro
