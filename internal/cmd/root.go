@@ -28,9 +28,11 @@ func Execute() {
 	go tiles.Watch()
 
 	http.Handle("/favicon.svg", http.FileServer(http.Dir("./web")))
-	http.Handle("/heatmap.json", http.FileServer(http.Dir("./style")))
-	http.HandleFunc("/api/heatmap", tiles.GetHeatmapGeoJSON)
-	http.HandleFunc("/api/overlay", tiles.GetHeatmapOverlay)
+	// http.Handle("/heatmap.json", http.FileServer(http.Dir("./style")))
+	// http.HandleFunc("/api/heatmap", tiles.GetHeatmapGeoJSON)
+	http.HandleFunc("/api/heatmap", tiles.GetHeatmapOverlay)
+	// http.HandleFunc("/api/squadrats-overlay", tiles.GetSquadratsOverlay)
+	http.HandleFunc("/api/heathunt", tiles.GetCombinedOverlay)
 	addr := ":3465"
 	log.Println("Server started at port" + addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
