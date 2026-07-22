@@ -11,23 +11,26 @@ type CombinedOverlayResponse struct {
 }
 
 // buildSquadratsSourcesAndLayers constructs sources and layers for the
-// three-level squadrats visualization:
-//   - All visited tiles:  #FCD7AE fill (squadrats color)
-//   - Yard tiles:         #FFFFFF fill on top (fully enclosed tiles only)
-//   - Übersquadrat:       #FF4D00 thick line outline (no fill)
+// squadrats visualization:
+//   - All visited tiles:  #FCD7AE fill
+//   - Yard tiles:         #FFFFFF fill (fully enclosed interior only)
+//   - Outer perimeter:    black line outline around visited tile cluster
+//   - Übersquadrat:       #FF4D00 thick line outline
 func buildSquadratsSourcesAndLayers(
-	all  *PolygonFeatureCollection,
-	yard *PolygonFeatureCollection,
-	uber *UbersquadratResult,
+	all       *PolygonFeatureCollection,
+	yard      *PolygonFeatureCollection,
+	uber      *UbersquadratResult,
+	perimeter map[string]interface{},
 ) (map[string]interface{}, []interface{}) {
 
 	sources := map[string]interface{}{
-		"squadrats-all":  map[string]interface{}{"type": "geojson", "data": all},
-		"squadrats-yard": map[string]interface{}{"type": "geojson", "data": yard},
+		"squadrats-all":       map[string]interface{}{"type": "geojson", "data": all},
+		"squadrats-yard":      map[string]interface{}{"type": "geojson", "data": yard},
+		"squadrats-perimeter": map[string]interface{}{"type": "geojson", "data": perimeter},
 	}
 
 	layers := []interface{}{
-		// 1) All visited tiles — Squadrats peach base color
+		// 1) All visited tiles — peach base
 		map[string]interface{}{
 			"id":     "squadrats-all-fill",
 			"type":   "fill",
@@ -37,7 +40,7 @@ func buildSquadratsSourcesAndLayers(
 				"fill-opacity": 0.6,
 			},
 		},
-		// 2) Yard tiles — white, on top of peach
+		// 2) Yard tiles — white interior
 		map[string]interface{}{
 			"id":     "squadrats-yard-fill",
 			"type":   "fill",
@@ -47,15 +50,26 @@ func buildSquadratsSourcesAndLayers(
 				"fill-opacity": 0.7,
 			},
 		},
+		// 3) Outer perimeter — black outline around entire visited cluster
+		map[string]interface{}{
+			"id":     "squadrats-perimeter-line",
+			"type":   "line",
+			"source": "squadrats-perimeter",
+			"paint": map[string]interface{}{
+				"line-color":   "#000000",
+				"line-width":   1.5,
+				"line-opacity": 0.8,
+			},
+			"layout": map[string]interface{}{
+				"line-join": "round",
+				"line-cap":  "square",
+			},
+		},
 	}
 
-	// 3) Übersquadrat — thick orange outline as a line layer.
-	// Using a LineString (closed ring) instead of fill-outline-color
-	// so line-width is fully controllable.
+	// 4) Übersquadrat — thick orange outline
 	if uber != nil {
 		ring := ubersquadratPolygon(uber, squadratsZoom)
-		// Close the ring as a LineString (same coords, just without
-		// the Polygon wrapper) so we can use a line layer.
 		uberGeoJSON := map[string]interface{}{
 			"type": "FeatureCollection",
 			"features": []interface{}{
@@ -75,22 +89,20 @@ func buildSquadratsSourcesAndLayers(
 			"type": "geojson",
 			"data": uberGeoJSON,
 		}
-		layers = append(layers,
-			map[string]interface{}{
-				"id":     "squadrats-uber-outline",
-				"type":   "line",
-				"source": "squadrats-uber",
-				"paint": map[string]interface{}{
-					"line-color":   "#FF4D00",
-					"line-width":   4,
-					"line-opacity": 1.0,
-				},
-				"layout": map[string]interface{}{
-					"line-join": "round",
-					"line-cap":  "round",
-				},
+		layers = append(layers, map[string]interface{}{
+			"id":     "squadrats-uber-outline",
+			"type":   "line",
+			"source": "squadrats-uber",
+			"paint": map[string]interface{}{
+				"line-color":   "#FF4D00",
+				"line-width":   4,
+				"line-opacity": 1.0,
 			},
-		)
+			"layout": map[string]interface{}{
+				"line-join": "round",
+				"line-cap":  "round",
+			},
+		})
 	}
 
 	return sources, layers
@@ -99,9 +111,10 @@ func buildSquadratsSourcesAndLayers(
 func GetCombinedOverlay(w http.ResponseWriter, r *http.Request) {
 	cacheMutex.Lock()
 	heatmapGeojson := cachedGeoJSON
-	all  := cachedSquadratsGeoJSON
-	yard := cachedYardGeoJSON
-	uber := cachedUbersquadrat
+	all            := cachedSquadratsGeoJSON
+	yard           := cachedYardGeoJSON
+	uber           := cachedUbersquadrat
+	perimeter      := cachedPerimeterGeoJSON
 	cacheMutex.Unlock()
 
 	if heatmapGeojson == nil || all == nil || yard == nil {
@@ -115,7 +128,7 @@ func GetCombinedOverlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	squadratsSources, squadratsLayers := buildSquadratsSourcesAndLayers(all, yard, uber)
+	squadratsSources, squadratsLayers := buildSquadratsSourcesAndLayers(all, yard, uber, perimeter)
 
 	allSources := map[string]interface{}{
 		"tracks-source": map[string]interface{}{
@@ -127,7 +140,6 @@ func GetCombinedOverlay(w http.ResponseWriter, r *http.Request) {
 		allSources[k] = v
 	}
 
-	// Layer order: squadrats fills → übersquadrat outline → track lines on top
 	allLayers := make([]interface{}, 0, len(squadratsLayers)+len(trackLayers))
 	allLayers = append(allLayers, squadratsLayers...)
 	allLayers = append(allLayers, trackLayers...)
