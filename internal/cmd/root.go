@@ -31,7 +31,7 @@ func Execute() {
 	// http.Handle("/heatmap.json", http.FileServer(http.Dir("./style")))
 	// http.HandleFunc("/api/heatmap", tiles.GetHeatmapGeoJSON)
 	http.HandleFunc("/api/heatmap", tiles.GetHeatmapOverlay)
-	// http.HandleFunc("/api/squadrats-overlay", tiles.GetSquadratsOverlay)
+	http.HandleFunc("/api/squares", tiles.GetSquadratsOverlay)
 	http.HandleFunc("/api/heathunt", tiles.GetCombinedOverlay)
 	addr := ":3465"
 	log.Println("Server started at port" + addr)
