@@ -34,6 +34,42 @@ func loadStyleLayers() ([]interface{}, error) {
 	return styleLayers, nil
 }
 
+func loadHeathuntStyleLayers() ([]interface{}, error) {
+	layers, err := loadStyleLayers()
+	if err != nil {
+		return nil, err
+	}
+
+	pink := map[string][]interface{}{
+		"tracks-glow": {
+			"interpolate",
+			[]interface{}{"linear"},
+			[]interface{}{"get", "count"},
+			1, "rgb(244, 75, 254)",
+			10, "rgb(247, 120, 255)",
+			50, "rgb(249, 170, 255)",
+			100, "rgb(253, 217, 255)",
+		},
+		"tracks-core": {
+			"interpolate",
+			[]interface{}{"linear"},
+			[]interface{}{"get", "count"},
+			1, "rgb(244, 75, 254)",
+			10, "rgb(239, 110, 250)",
+			50, "rgb(245, 150, 254)",
+			100, "rgb(247, 190, 255)",
+		},
+	}
+
+	for _, layer := range layers {
+		m := layer.(map[string]interface{})
+		if color, ok := pink[m["id"].(string)]; ok {
+			m["paint"].(map[string]interface{})["line-color"] = color
+		}
+	}
+	return layers, nil
+}
+
 func GetHeatmapOverlay(w http.ResponseWriter, r *http.Request) {
 	cacheMutex.Lock()
 	geojson := cachedGeoJSON

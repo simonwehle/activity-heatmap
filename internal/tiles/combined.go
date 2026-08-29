@@ -122,7 +122,7 @@ func GetCombinedOverlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	trackLayers, err := loadStyleLayers()
+	trackLayers, err := loadHeathuntStyleLayers()
 	if err != nil {
 		http.Error(w, "failed to load style layers", http.StatusInternalServerError)
 		return
