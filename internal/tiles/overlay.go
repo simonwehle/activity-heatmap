@@ -35,7 +35,7 @@ func loadStyleLayers() ([]interface{}, error) {
 }
 
 func loadHeathuntStyleLayers() ([]interface{}, error) {
-	layers, err := loadStyleLayers()
+	orig, err := loadStyleLayers()
 	if err != nil {
 		return nil, err
 	}
@@ -61,11 +61,27 @@ func loadHeathuntStyleLayers() ([]interface{}, error) {
 		},
 	}
 
-	for _, layer := range layers {
+	layers := make([]interface{}, len(orig))
+	for i, layer := range orig {
 		m := layer.(map[string]interface{})
-		if color, ok := pink[m["id"].(string)]; ok {
-			m["paint"].(map[string]interface{})["line-color"] = color
+		color, ok := pink[m["id"].(string)]
+		if !ok {
+			layers[i] = layer
+			continue
 		}
+
+		newLayer := make(map[string]interface{}, len(m))
+		for k, v := range m {
+			newLayer[k] = v
+		}
+		paint := m["paint"].(map[string]interface{})
+		newPaint := make(map[string]interface{}, len(paint))
+		for k, v := range paint {
+			newPaint[k] = v
+		}
+		newPaint["line-color"] = color
+		newLayer["paint"] = newPaint
+		layers[i] = newLayer
 	}
 	return layers, nil
 }
