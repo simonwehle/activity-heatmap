@@ -7,8 +7,8 @@ import (
 )
 
 type HeatmapOverlayResponse struct {
-	Source interface{}   `json:"source"`
-	Layers []interface{} `json:"layers"`
+	Sources map[string]interface{} `json:"sources"`
+	Layers  []interface{}          `json:"layers"`
 }
 
 var styleLayers []interface{}
@@ -103,7 +103,12 @@ func GetHeatmapOverlay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := HeatmapOverlayResponse{
-		Source: geojson,
+		Sources: map[string]interface{}{
+			"tracks-source": map[string]interface{}{
+				"type": "geojson",
+				"data": geojson,
+			},
+		},
 		Layers: layers,
 	}
 
