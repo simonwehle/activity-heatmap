@@ -15,7 +15,8 @@ type Point struct {
 }
 
 type Segment struct {
-	Points []Point
+	Points       []Point
+	ActivityType string
 }
 
 func ParseFITFile(path string) ([]Segment, error) {
@@ -32,6 +33,11 @@ func ParseFITFile(path string) ([]Segment, error) {
 	}
 
 	activity := filedef.NewActivity(fit.Messages...)
+	activityType := "unknown"
+	if len(activity.Sessions) > 0 {
+		activityType = activity.Sessions[0].Sport.String()
+	}
+
 	var points []Point
 	for _, rec := range activity.Records {
 		if int32(rec.PositionLat) == 0x7FFFFFFF || int32(rec.PositionLong) == 0x7FFFFFFF {
@@ -48,5 +54,5 @@ func ParseFITFile(path string) ([]Segment, error) {
 	if len(points) < 2 {
 		return nil, nil
 	}
-	return []Segment{{Points: points}}, nil
+	return []Segment{{Points: points, ActivityType: activityType}}, nil
 }

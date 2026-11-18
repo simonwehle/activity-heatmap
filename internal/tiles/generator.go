@@ -24,19 +24,20 @@ type GeoJSONGeometry struct {
 }
 
 type FeatureCollection struct {
-	Type     string          `json:"type"`
+	Type     string           `json:"type"`
 	Features []GeoJSONFeature `json:"features"`
 }
 
 type LineSegment struct {
-	Coordinates [][]float64
-	Count       int
+	Coordinates  [][]float64
+	Count        int
+	ActivityType string
 }
 
 var (
-	cachedGeoJSON *FeatureCollection
+	cachedGeoJSON  *FeatureCollection
 	cachedSegments []LineSegment
-	cacheMutex    sync.Mutex
+	cacheMutex     sync.Mutex
 )
 
 func Generate() error {
@@ -122,8 +123,9 @@ func extractLineSegments() ([]LineSegment, error) {
 				coords[i] = roundCoordPair(coords[i])
 			}
 			allSegments = append(allSegments, LineSegment{
-				Coordinates: coords,
-				Count:       1,
+				Coordinates:  coords,
+				Count:        1,
+				ActivityType: seg.ActivityType,
 			})
 		}
 		processedFiles++
@@ -147,8 +149,9 @@ func segmentsToGeoJSON(segments []LineSegment) FeatureCollection {
 				Coordinates: segment.Coordinates,
 			},
 			Properties: map[string]interface{}{
-				"count": segment.Count,
-				"id":    i,
+				"count":         segment.Count,
+				"id":            i,
+				"activity_type": segment.ActivityType,
 			},
 		}
 		fc.Features = append(fc.Features, feature)
