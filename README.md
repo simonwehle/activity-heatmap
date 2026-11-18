@@ -11,7 +11,7 @@ Add your GPX files in the `/activities` folder.
 
 The easiest way to get activities from Garmin is to spin up a [Endurain](https://endurain.com/) container and point `activity-heatmap` to the Endurain activities folder.
 
-The easiest way to get activities from Garmin is to connect your watch and copy `.fit` files from `/GARMIN/Activity` to your `/activities` folder. For Mac you can use OpenMTP
+Alternatively you can manually connect your watch and copy `.fit` files from `/GARMIN/Activity` to your `/activities` folder. For Mac you can use OpenMTP
 
 ```sh
 brew install --cask openmtp
